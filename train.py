@@ -79,7 +79,6 @@ if __name__ == "__main__":
     os.environ["DEVICE"] = "cuda" if not args.use_cpu else "cpu"
     
     dtype = torch.bfloat16 if torch.cuda.is_available() and torch.cuda.is_bf16_supported() and not args.use_cpu else torch.float32 # if GPU is not available or not supported, use torch.float32
-    os.environ["DTYPE"] = "bfloat16" if dtype == torch.bfloat16 else "float32"
     assert (dtype == torch.bfloat16 and os.getenv("FLASH_ATTEN") == "1") or os.getenv("FLASH_ATTEN") != "1", "Kernel operations requires dtype=torch.bfloat16"
 
     local_rank = int(os.environ["LOCAL_RANK"])
@@ -186,7 +185,7 @@ if __name__ == "__main__":
     #TODO: Add activation checkpointing
     #TODO: add gradient accumulation
     
-    while MAX_TOKENS is None or trained_tokens < MAX_TOKENS:
+    while trained_tokens < MAX_TOKENS:
         #TODO: Add epoch support
         # data_loader.set_epoch(step)
         step_start_time = time.time()

@@ -97,7 +97,7 @@ def train_step_pipeline_1f1b(model, data_loader, tensor_shapes, device, dtype):
             input_tensor = None
             pipeline_communicate(operation='send_backward', tensor=input_tensor_grad, device=device, dtype=dtype)
         else:
-            input_tensor = bidirectional_pipeline_communicate(operation='send_bwd_recv_fwd', send_tensor=input_tensor_grad, recv_shapes=tensor_shapes, device=device, dtype=torch.dtype)
+            input_tensor = bidirectional_pipeline_communicate(operation='send_bwd_recv_fwd', send_tensor=input_tensor_grad, recv_shapes=tensor_shapes, device=device, dtype=dtype)
 
     for _ in range(num_warmup_microbatches): # Cooldown backward passes
         input_tensor, output_tensor = input_tensors.pop(0), output_tensors.pop(0)
