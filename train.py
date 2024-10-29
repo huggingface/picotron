@@ -87,7 +87,7 @@ if __name__ == "__main__":
     port = int(os.environ["MASTER_PORT"])
     
     ## hyperparameters
-    SEQ_LEN, LOCAL_BATCH_SIZE, MICRO_BATCH_SIZE, LEARNING_RATE, NUM_SAMPLES, MAX_TOKENS, SEED = 1024, 64, 32, 3e-4, 400000, None, 42
+    SEQ_LEN, LOCAL_BATCH_SIZE, MICRO_BATCH_SIZE, LEARNING_RATE, NUM_SAMPLES, MAX_TOKENS, SEED = 1024, 64, 32, 3e-4, 400000, 10e12, 42
     total_train_steps = 200
     grad_acc = 1
     
