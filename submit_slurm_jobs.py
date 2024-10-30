@@ -65,22 +65,18 @@ class Scheduler:
     def filter_out_jobs(self, status: Status):
         return [job for job in self.job_lists if job.status != status]
      
-    def create_slurm_script(self, job: Job, cluster: str):
+    def create_slurm_script(self, job: Job):
         # Submit job to the cluster (edit jinja)    
         # load yaml config.yaml
         with open(job.config, 'r') as file:
             config = json.load(file)
         
-        if cluster == "hf":
-            max_nodes = 8
-        else:
-            raise ValueError("Invalid cluster")
-        
+        max_gpu_per_node = 8
         # Pick the right number of nodes and n_proc_per_node
         world_size = config["distributed"]["tp_size"] * config["distributed"]["cp_size"] * config["distributed"]["pp_size"] * config["distributed"]["dp_size"]
-        assert world_size <= max_nodes or world_size % max_nodes == 0
-        nodes = max(1, world_size // max_nodes)
-        n_proc_per_node = min(8, world_size // nodes)
+        assert world_size <= max_gpu_per_node or world_size % max_gpu_per_node == 0
+        nodes = max(1, world_size // max_gpu_per_node)
+        n_proc_per_node = min(max_gpu_per_node, world_size // nodes)
         assert nodes * n_proc_per_node == world_size
         
         context_bench = {
@@ -91,12 +87,8 @@ class Scheduler:
             "qos": job.qos,
         }
         
-        #TODO: don't hardcode the base_job.slurm path. Should be #HOME/bench_cluster/template/base_job.slurm
-        if cluster == "hf":
-            base_path = "/fsx/ferdinandmom/ferdinand-hf/picotron/bench/template/base_job.slurm"
-        else:
-            raise ValueError("Invalid cluster")
-        
+        base_path = os.path.join(os.getcwd(), "template/base_job.slurm")
+
         with open(base_path, 'r') as file:
             base_job_file = file.read()
         
@@ -114,9 +106,9 @@ class Scheduler:
         prev_job_id = None
         for job in job_array:
             if prev_job_id is None:         
-                result = subprocess.run(["sbatch", '--parsable', os.path.join(job.root_path, "bench.slurm")], env=env_vars, capture_output=True, text=True)
+                result = subprocess.run(["sbatch", '--parsable', os.path.join(job.root_path, "job.slurm")], env=env_vars, capture_output=True, text=True)
             else:
-                result = subprocess.run(["sbatch", '--parsable', '--dependency=afterany:'+prev_job_id, os.path.join(job.root_path, "bench.slurm")], env=env_vars, capture_output=True, text=True)
+                result = subprocess.run(["sbatch", '--parsable', '--dependency=afterany:'+prev_job_id, os.path.join(job.root_path, "job.slurm")], env=env_vars, capture_output=True, text=True)
             job.set_status(Status.PENDING)
             prev_job_id = result.stdout.strip()
                     
@@ -154,7 +146,7 @@ class Scheduler:
         print(f"{'-'*10}-|-{'-'*6}")
         print(f"{'Total':<10} | {total:<6}")
 
-def submit_jobs(inp_dir, qos, nb_slurm_array, cluster: str, only: str = None):
+def submit_jobs(inp_dir, qos, nb_slurm_array, only: str = None):
     scheduler = Scheduler(inp_dir, qos)
 
     #TODO: batch into job arrays
@@ -199,7 +191,7 @@ def submit_jobs(inp_dir, qos, nb_slurm_array, cluster: str, only: str = None):
             print(f"Launching job Dependency array {i+1} with {nb_jobs} jobs")
             
             for job in job_array:
-                scheduler.create_slurm_script(job, cluster)
+                scheduler.create_slurm_script(job)
 
             scheduler.launch_dependency(job_array, env_vars)
             
@@ -207,9 +199,9 @@ def submit_jobs(inp_dir, qos, nb_slurm_array, cluster: str, only: str = None):
     else:
         # Don't use job dependecies
         for job in scheduler.job_lists:
-            scheduler.create_slurm_script(job, cluster)
-            print(os.path.join(job.root_path, "bench.slurm"))
-            subprocess.run(["sbatch", os.path.join(job.root_path, "bench.slurm")], env=env_vars)
+            scheduler.create_slurm_script(job)
+            print(os.path.join(job.root_path, "job.slurm"))
+            subprocess.run(["sbatch", os.path.join(job.root_path, "job.slurm")], env=env_vars)
             job.set_status(Status.PENDING)
             
 if __name__ == "__main__":
@@ -219,9 +211,8 @@ if __name__ == "__main__":
     parser.add_argument('--inp_dir', type=str, help='Input directory containing the jobs')
     parser.add_argument('--qos', type=str, help='QOS of the jobs')
     parser.add_argument('--nb_slurm_array', type=int, default=0, help='Number of slurm arrays')
-    parser.add_argument('--cluster', type=str, default='hf', help='Cluster to submit the jobs')
     parser.add_argument('--only', type=str, default=None, help='Filter the jobs to submit')
     
     args = parser.parse_args()
     
-    submit_jobs(args.inp_dir, args.qos, args.nb_slurm_array, cluster=args.cluster, only=args.only)
+    submit_jobs(args.inp_dir, args.qos, args.nb_slurm_array, only=args.only)
