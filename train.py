@@ -76,7 +76,6 @@ if __name__ == "__main__":
     
     # hyperparameters
     SEQ_LEN = config["training"]["seq_length"]
-    LOCAL_BATCH_SIZE = config["training"]["local_batch_size"]
     MICRO_BATCH_SIZE = config["training"]["micro_batch_size"]
     LEARNING_RATE = config["training"]["learning_rate"]
     NUM_SAMPLES = config["training"]["num_samples"]
@@ -116,10 +115,6 @@ if __name__ == "__main__":
     setup_process_group_manager(tp_size=TP_SIZE, cp_size=CP_SIZE, pp_size=PP_SIZE, dp_size=DP_SIZE)
     is_wandb_rank = pgm.process_group_manager.tp_rank == 0 and pgm.process_group_manager.dp_rank == 0 and pgm.process_group_manager.cp_rank == 0 and pgm.process_group_manager.pp_is_last_stage
 
-    tokens_per_step = LOCAL_BATCH_SIZE * SEQ_LEN * GRAD_ACC * DP_SIZE
-    if pgm.process_group_manager.global_rank == 0:
-        print("Tokens per step:", to_readable_format(tokens_per_step), is_print_rank=is_wandb_rank)
-
     set_all_seed(SEED)
 
     model_config = AutoConfig.from_pretrained(MODEL_NAME)
@@ -130,13 +125,31 @@ if __name__ == "__main__":
     start_time = time.time()
     model = Llama(config=model_config)
     print("init model time:", time.time()-start_time, is_print_rank=is_wandb_rank)
+
+    start_time = time.time()
+    data_loader = MicroBatchDataLoader(
+        micro_batch_size=MICRO_BATCH_SIZE,
+        seq_length=SEQ_LEN,
+        dataset_name=DATASET_NAME,
+        tokenizer_name=MODEL_NAME,
+        grad_acc=GRAD_ACC,
+        num_workers=NUM_WORKERS,
+        num_proc=NUM_PROC,
+        num_samples=NUM_SAMPLES
+    )
+    print("init dataloader time:", time.time()-start_time, is_print_rank=is_wandb_rank)
+    tokens_per_step = data_loader.global_batch_size * SEQ_LEN
     
+    if pgm.process_group_manager.global_rank == 0:
+        print("Tokens per step:", to_readable_format(tokens_per_step), is_print_rank=is_wandb_rank)
+
     if is_wandb_rank and USE_WANDB:
         wandb.init(
             project="picotron",
             name=f"test_convergence_GBS_{tokens_per_step}_{pgm.process_group_manager}",
             config={
                 "tensor_parallel_size": pgm.process_group_manager.tp_size,
+                "context_parallel_size": pgm.process_group_manager.cp_size,
                 "pipeline_parallel_size": pgm.process_group_manager.pp_size,
                 "data_parallel_size": pgm.process_group_manager.dp_size,
                 "model": config["model"]["name"],
@@ -144,20 +157,21 @@ if __name__ == "__main__":
                 "max_tokens": MAX_TOKENS,
                 "learning_rate": LEARNING_RATE,
                 "seed": SEED,
-                "micro_batch_size": MICRO_BATCH_SIZE,
-                "global_batch_size": LOCAL_BATCH_SIZE * pgm.process_group_manager.dp_size * GRAD_ACC,
+                "micro_batch_size": data_loader.micro_batch_size,
+                "global_batch_size": data_loader.global_batch_size,
                 "gradient_accumulation": GRAD_ACC,
             },
         )
 
     start_time = time.time()
-    model.to(dtype).to(device)
    
     if pgm.process_group_manager.tp_world_size > 1:
         TensorParallel(model)
 
     if pgm.process_group_manager.pp_world_size > 1:
         model = PipelineParallel(model, model_config)
+
+    model.to(dtype).to(device)
         
     # Context parallel and Data parallel both need gradient synchronization
     if pgm.process_group_manager.cp_dp_world_size > 1:
@@ -169,19 +183,6 @@ if __name__ == "__main__":
     model.train()
     print("model to device time:", time.time()-start_time, is_print_rank=is_wandb_rank)
     
-    start_time = time.time()
-    data_loader = MicroBatchDataLoader(
-        local_batch_size=LOCAL_BATCH_SIZE,
-        micro_batch_size=MICRO_BATCH_SIZE,
-        seq_length=SEQ_LEN,
-        dataset_name=DATASET_NAME,
-        tokenizer_name=MODEL_NAME,
-        grad_acc = GRAD_ACC,
-        num_workers=NUM_WORKERS,
-        num_proc=NUM_PROC,
-        num_samples=NUM_SAMPLES
-    )
-    print("init dataloader time:", time.time()-start_time, is_print_rank=is_wandb_rank)
     tensor_shapes = (data_loader.micro_batch_size, data_loader.seq_length_per_gpu, model_config.hidden_size)
     optimizer = AdamW(model.parameters(), lr=LEARNING_RATE)
     

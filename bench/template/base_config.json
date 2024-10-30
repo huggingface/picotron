@@ -2,8 +2,8 @@
     "distributed": {
         "tp_size": 1,
         "cp_size": 1,
-        "pp_size": 2,
-        "dp_size": 2,
+        "pp_size": 1,
+        "dp_size": 1,
         "master_addr": "localhost",
         "master_port": 29500,
         "backend": "nccl",
@@ -22,7 +22,6 @@
         "learning_rate": 3e-4,
         "total_train_steps": 200,
         "seq_length": 1024,
-        "local_batch_size": 64,
         "micro_batch_size": 32,
         "gradient_accumulation_steps": 1,
         "num_samples": 400000,

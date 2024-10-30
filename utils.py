@@ -75,14 +75,16 @@ def load_checkpoint(model, optimizer, out_dir):
     return checkpoint['trained_steps'], checkpoint['trained_tokens']         
 
 class MicroBatchDataLoader(DataLoader):
-    def __init__(self, local_batch_size, micro_batch_size, seq_length, dataset_name, tokenizer_name, num_workers, num_proc, grad_acc=1, split="train", num_samples=None):
-        self.global_batch_size = local_batch_size * pgm.process_group_manager.dp_world_size
+    def __init__(self,  micro_batch_size, seq_length, dataset_name, tokenizer_name, num_workers, num_proc, grad_acc, split="train", num_samples=None):
+        
         self.micro_batch_size = micro_batch_size
         self.seq_length = seq_length
-        self.local_batch_size = local_batch_size
+        self.grad_acc = grad_acc
+
+        self.local_batch_size = micro_batch_size * grad_acc
+        self.global_batch_size = self.local_batch_size * pgm.process_group_manager.dp_world_size
         self.num_local_micro_batches = self.local_batch_size // self.micro_batch_size
         self.num_global_micro_batches = self.global_batch_size // self.micro_batch_size
-        self.grad_acc = grad_acc
         
         self.seq_length_per_gpu = seq_length // pgm.process_group_manager.cp_world_size
 
