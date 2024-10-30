@@ -1,11 +1,12 @@
 # Inspired by https://github.com/zhuzilin/ring-flash-attention
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch import distributed as dist
 from typing import Any, Optional, Tuple
 from src.distributed.distributed_primtives import ContextComms
 import src.distributed.process_group_manager as pgm
+from flash_attn.flash_attn_interface import _flash_attn_forward, _flash_attn_backward
 
 def ring_attention(q, k, v, sm_scale, is_causal):
     return RingAttentionFunc.apply(q, k, v, sm_scale, is_causal)
@@ -15,7 +16,6 @@ class RingAttentionFunc(torch.autograd.Function):
     @staticmethod
     def forward(ctx, q, k, v, sm_scale, is_causal):
         comm = ContextComms("comm")
-        #TODO(fmom): add flash attention
         #TODO(fmom): Find a better to save these tensors without cloning
         k_og = k.clone()
         v_og = v.clone()
@@ -29,10 +29,16 @@ class RingAttentionFunc(torch.autograd.Function):
                 comm.commit()
 
             if not is_causal or step <= comm.rank:
-                block_out, block_lse  = ring_attention_forward(
-                    q, k, v, sm_scale, is_causal and step == 0
-                )
-                out, lse = update_out_and_lse(out, lse, block_out, block_lse)
+                if os.getenv("FLASH_ATTEN", "0") == "1":
+                    print("Using Flash Attention")
+                    block_out, _, _, _, _, block_lse, _, _ = _flash_attn_forward(
+                        q, k, v, dropout_p=0.0, softmax_scale=sm_scale, causal=is_causal and step == 0,
+                        window_size=(-1, -1), alibi_slopes=None, return_softmax=False
+                    )
+                    out, lse = update_out_and_lse(out, lse, block_out, block_lse)
+                else:
+                    block_out, block_lse  = ring_attention_forward(q, k, v, sm_scale, is_causal and step == 0)
+                    out, lse = update_out_and_lse(out, lse, block_out, block_lse)
                 
             if step + 1 != comm.world_size:
                 comm.wait()
@@ -73,9 +79,15 @@ class RingAttentionFunc(torch.autograd.Function):
             if step <= kv_comm.rank or not is_causal:
                 bwd_causal = is_causal and step == 0
 
-                block_dq_buffer, block_dk_buffer, block_dv_buffer = ring_attention_backward(
-                    dout, q, k, v, out, softmax_lse, sm_scale, bwd_causal
-                )
+                if os.getenv("FLASH_ATTEN", "0") == "1":
+                    _flash_attn_backward(
+                        dout, q, k, v, out, softmax_lse, dq, dk, dv, dropout_p=0.0, softmax_scale=sm_scale,
+                        causal=bwd_causal, window_size=(-1, -1), alibi_slopes=None, deterministic=False
+                    )
+                else:
+                    block_dq_buffer, block_dk_buffer, block_dv_buffer = ring_attention_backward(
+                        dout, q, k, v, out, softmax_lse, sm_scale, bwd_causal
+                    )
 
                 if dq is None:
                     dq = block_dq_buffer.to(torch.float32)
