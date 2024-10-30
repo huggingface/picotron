@@ -53,12 +53,11 @@ export CUBLAS_WORKSPACE_CONFIG=":4096:8"
 export CUDA_DEVICE_MAX_CONNECTIONS="1"
 
 module load cuda/12.1
-huggingface-cli login --token $HUGGINGFACE_TOKEN
 
 GIT_REPO="/fsx/ferdinandmom/ferdinand-hf/picotron/"
-CMD="$GIT_REPO/run_train.py --config-path {{ config }}  --logs-path {{ root_path }} --run output --slurm --nodes {{ nodes }}"
+CMD="$GIT_REPO/train.py --config {{ config }}"
 
-LAUNCHER="python"
+LAUNCHER="torchrun --nproc_per_node={{ n_proc_per_node }} --nnode={{ nodes }} --node_rank=$SLURM_NODEID --master_addr=$MASTER_ADDR --master_port=$MASTER_PORT"
 
 # Checkout the bench_cluster branch
 cd $GIT_REPO
