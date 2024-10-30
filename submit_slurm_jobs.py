@@ -91,21 +91,21 @@ class Scheduler:
             "qos": job.qos,
         }
         
-        #TODO: don't hardcode the base_bench.slurm path. Should be #HOME/bench_cluster/template/base_bench.slurm
+        #TODO: don't hardcode the base_job.slurm path. Should be #HOME/bench_cluster/template/base_job.slurm
         if cluster == "hf":
-            base_path = "/fsx/ferdinandmom/ferdinand-hf/picotron/bench/template/base_bench.slurm"
+            base_path = "/fsx/ferdinandmom/ferdinand-hf/picotron/bench/template/base_job.slurm"
         else:
             raise ValueError("Invalid cluster")
         
         with open(base_path, 'r') as file:
-            base_bench_file = file.read()
+            base_job_file = file.read()
         
-        base_bench_template = Template(base_bench_file)
+        base_job_template = Template(base_job_file)
                 
         # Write the rendered script to a new file located at the job root_path
-        output_file_path = os.path.join(job.root_path, "bench.slurm")
+        output_file_path = os.path.join(job.root_path, "job.slurm")
         with open(output_file_path, 'w') as file:
-            file.write(base_bench_template.render(context_bench))
+            file.write(base_job_template.render(context_bench))
 
         print(f"Slurm script created at {output_file_path}")
     

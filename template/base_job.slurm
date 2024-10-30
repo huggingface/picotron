@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=bench-picotron
+#SBATCH --job-name=job-picotron
 #SBATCH --time=00:30:00
 #SBATCH --partition=hopper-prod
 #SBATCH --nodes={{ nodes }}
