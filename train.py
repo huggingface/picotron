@@ -1,9 +1,11 @@
 """Training script for LLaMA model.
-CUDA_DEVICE_MAX_CONNECTIONS=1 torchrun --nproc_per_node 1 --master_addr localhost --master_port 25500 train.py --config tmp/dummy/360M_131K.json
-CUDA_DEVICE_MAX_CONNECTIONS=1 torchrun --nproc_per_node 2 --master_addr localhost --master_port 25500 train.py --config tmp/dummy/360M_131K.json
-CUDA_DEVICE_MAX_CONNECTIONS=1 torchrun --nproc_per_node 4 --master_addr localhost --master_port 25500 train.py --config tmp/dummy/360M_131K.json
-CUDA_DEVICE_MAX_CONNECTIONS=1 torchrun --nproc_per_node 8 --master_addr localhost --master_port 25500 train.py --config tmp/dummy/360M_131K.json
-CUDA_DEVICE_MAX_CONNECTIONS=1 debugpy-run -p 5678 -m torch.distributed.run -- --nproc_per_node=2 --nnodes=1 --rdzv_backend=c10d --rdzv_endpoint=localhost:29400 train.py --config tmp/dummy/360M_131K.json
+torchrun --nproc_per_node 1 --master_addr localhost --master_port 25500 train.py --use_wandb
+torchrun --nproc_per_node 2 --master_addr localhost --master_port 25500 train.py --dp_size 2 --use_wandb 
+torchrun --nproc_per_node 4 --master_addr localhost --master_port 25500 train.py --tp_size 2 --pp_size 2 --use_wandb 
+torchrun --nproc_per_node 4 --master_addr localhost --master_port 25500 train.py --tp_size 2 --pp_size 2 --load_path ckpt/150
+torchrun --nproc_per_node 8 --master_addr localhost --master_port 25500 train.py --tp_size 2 --dp_size 2 --pp_size 2 --use_wandb
+CUDA_DEVICE_MAX_CONNECTIONS=1 debugpy-run -p 5678 -m torch.distributed.run -- --nproc_per_node=2 --nnodes=1 --rdzv_backend=c10d --rdzv_endpoint=localhost:29400 train.py --dp_size 2
+CUDA_DEVICE_MAX_CONNECTIONS=1 torchrun    --nproc_per_node=4    --nnodes=1    --rdzv_backend=c10d    --rdzv_endpoint=localhost:29400    --max_restarts=0    --tee=3    train.py
 #VERBOSE=0 torchrun --nproc_per_node 4 --master_addr localhost --master_port 25500 train.py --pp_size 2 --dp_size 2
 """
 import os
@@ -20,7 +22,7 @@ from transformers import AutoConfig
 from picotron.context_parallel.context_parallel import apply_context_parallel
 from picotron.tensor_parallel.tensor_parallel import apply_tensor_parallel, initialize_weight_tensor
 import picotron.process_group_manager as pgm
-from picotron.utils import get_mfu, get_num_params, set_all_seed, print, to_readable_format, save_checkpoint, load_checkpoint
+from picotron.utils import set_all_seed, print, to_readable_format, save_checkpoint, load_checkpoint
 from picotron.data import MicroBatchDataLoader
 from picotron.process_group_manager import setup_process_group_manager
 from picotron.pipeline_parallel.pipeline_parallel import train_step_pipeline_1f1b, train_step_pipeline_afab, PipelineParallel
@@ -138,7 +140,7 @@ if __name__ == "__main__":
 
     dist.barrier()
 
-    print(f"init dataloader time: {time.time()-start_time:.2f}s", is_print_rank=is_wandb_rank)
+    print("init dataloader time:", time.time()-start_time, is_print_rank=is_wandb_rank)
     tokens_per_step = data_loader.global_batch_size * SEQ_LEN
     
     if pgm.process_group_manager.global_rank == 0:
@@ -172,7 +174,7 @@ if __name__ == "__main__":
 
     start_time = time.time()
     model = Llama(config=model_config)
-    print(f"init model time: {time.time()-start_time:.2f}s", is_print_rank=is_wandb_rank)
+    print("init model time:", time.time()-start_time, is_print_rank=is_wandb_rank)
     dist.barrier()
 
     start_time = time.time()
@@ -192,11 +194,10 @@ if __name__ == "__main__":
         # Context parallel and Data parallel both need gradient synchronization
         model = DataParallelBucket(model)
     
-    print(f"init model parallel time: {time.time()-start_time:.2f}s", is_print_rank=is_wandb_rank)
+    print("init model parallel time:", time.time()-start_time, is_print_rank=is_wandb_rank)
+    start_time = time.time()
     
     model.train()
-    num_params = get_num_params(model)
-    print(f"Number of parameters: {to_readable_format(num_params)}", is_print_rank=is_wandb_rank)
     
     tensor_shapes = (data_loader.micro_batch_size, data_loader.seq_length_per_gpu, model_config.hidden_size)
     
@@ -242,22 +243,15 @@ if __name__ == "__main__":
             model.reset()
 
         step_duration = time.time() - step_start_time
-        tokens_per_second = tokens_per_step / step_duration
-        mfu = get_mfu(tokens_per_second / world_size, num_params, model_config)
         
         if is_wandb_rank:
-            print(
-                f"[rank {pgm.process_group_manager.global_rank}] "
-                f"Step: {step:<5d} | "
-                f"Loss: {loss:6.4f} | "
-                f"Global batch size: {to_readable_format(tokens_per_step):>7s} | "
-                f"Tokens/s: {to_readable_format(tokens_per_second):>7s} | "
-                f"Tokens/s/GPU: {to_readable_format(tokens_per_second / world_size):>7s} | "
-                f"Tokens: {to_readable_format(trained_tokens):>7s}{('/' + to_readable_format(MAX_TOKENS)) if MAX_TOKENS else ''} | "
-                f"MFU: {mfu:5.2f}% | "
-                f"Memory usage: {torch.cuda.memory_reserved() / 1e9:6.2f}GB",
-                is_print_rank=is_wandb_rank
-            )
+            print(f"[rank {pgm.process_group_manager.global_rank}] Step: {step}, Loss: {loss:.4f}, "
+                f"Global batch size: {to_readable_format(tokens_per_step)}, "
+                f"Tokens/s: {to_readable_format(tokens_per_step / step_duration)}, "
+                f"Tokens/s/GPU: {to_readable_format(tokens_per_step / step_duration / world_size)}, "
+                f"Tokens: {to_readable_format(trained_tokens)}{('/' + to_readable_format(MAX_TOKENS)) if MAX_TOKENS else ''}, "
+                f"Memory usage: {torch.cuda.memory_reserved() / 1e9:.2f}GB"
+            , is_print_rank=is_wandb_rank)
         
             if USE_WANDB:
                 wandb.log({"loss": loss, "tokens_per_step": tokens_per_step, "tokens_per_second": tokens_per_step / step_duration,\
