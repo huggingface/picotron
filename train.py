@@ -13,17 +13,17 @@ import torch.nn.functional as F
 import torch, torch.distributed as dist
 from torch.optim import AdamW
 from transformers import AutoConfig
-from picotron.context_parallel.context_parallel import apply_context_parallel
-from picotron.tensor_parallel.tensor_parallel import apply_tensor_parallel
-import picotron.process_group_manager as pgm
-from picotron.utils import average_loss_across_dp_cp_ranks, set_all_seed, print, to_readable_format, get_mfu, get_num_params
-from picotron.checkpoint import CheckpointManager
-from picotron.checkpoint import init_model_with_dematerialized_weights, init_model_with_materialized_weights
-from picotron.data import MicroBatchDataLoader
-from picotron.process_group_manager import setup_process_group_manager
-from picotron.pipeline_parallel.pipeline_parallel import train_step_pipeline_1f1b, train_step_pipeline_afab, PipelineParallel
-from picotron.data_parallel.data_parallel import DataParallelBucket
-from picotron.model import Llama
+from .picotron.context_parallel.context_parallel import apply_context_parallel
+from .picotron.tensor_parallel.tensor_parallel import apply_tensor_parallel
+from .picotron import process_group_manager as pgm
+from .picotron.utils import average_loss_across_dp_cp_ranks, set_all_seed, print, to_readable_format, get_mfu, get_num_params
+from .picotron.checkpoint import CheckpointManager
+from .picotron.checkpoint import init_model_with_dematerialized_weights, init_model_with_materialized_weights
+from .picotron.data import MicroBatchDataLoader
+from .picotron.process_group_manager import setup_process_group_manager
+from .picotron.pipeline_parallel.pipeline_parallel import train_step_pipeline_1f1b, train_step_pipeline_afab, PipelineParallel
+from .picotron.data_parallel.data_parallel import DataParallelBucket
+from .picotron.model import Llama
 import wandb
 
 def train_step(model, data_loader, device):

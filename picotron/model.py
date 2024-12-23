@@ -3,11 +3,11 @@ import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from picotron.context_parallel import context_parallel
+from .context_parallel import context_parallel
 from flash_attn.flash_attn_interface import flash_attn_func
 from flash_attn.layers.rotary import apply_rotary_emb
 from flash_attn.ops.triton.layer_norm import layer_norm_fn
-import picotron.process_group_manager as pgm
+from . import process_group_manager as pgm
 
 def apply_rotary_pos_emb(x, cos, sin):
     #TODO: Maybe do class RotaryEmbedding(nn.Module) later

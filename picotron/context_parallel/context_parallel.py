@@ -4,8 +4,8 @@ import torch
 import torch.nn.functional as F
 from typing import Any, Optional, Tuple
 
-import picotron.process_group_manager as pgm
-from picotron.context_parallel.cp_communications import ContextCommunicate
+from .. import process_group_manager as pgm
+from .cp_communications import ContextCommunicate
 
 def apply_context_parallel(model):
     os.environ["CONTEXT_PARALLEL"] = "1" if pgm.process_group_manager.cp_world_size > 1 else "0"

@@ -1,6 +1,6 @@
 import torch.distributed as dist
 import torch
-import picotron.process_group_manager as pgm
+from .. import process_group_manager as pgm
 import torch.nn.functional as F
 
 from typing import Tuple

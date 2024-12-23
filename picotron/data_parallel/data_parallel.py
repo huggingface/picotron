@@ -4,8 +4,8 @@ import contextlib
 from torch import nn
 from torch.autograd import Variable
 
-from picotron.data_parallel.bucket import BucketManager
-import picotron.process_group_manager as pgm
+from .bucket import BucketManager
+from .. import process_group_manager as pgm
 
 class DataParallelNaive(nn.Module):
     """

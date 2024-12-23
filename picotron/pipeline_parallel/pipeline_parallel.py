@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-import picotron.process_group_manager as pgm
-from picotron.pipeline_parallel.pp_communications import pipeline_communicate, bidirectional_pipeline_communicate
+from .. import process_group_manager as pgm
+from .pp_communications import pipeline_communicate, bidirectional_pipeline_communicate
 
 class PipelineParallel(nn.Module):
     def __init__(self, model, config):
