@@ -58,7 +58,7 @@ module load cuda/12.1
 GIT_REPO="/fsx/ferdinandmom/ferdinand-hf/picotron/"
 CMD="$GIT_REPO/train.py --config {{ config }}"
 
-git checkout loading_big_model
+git checkout main
 # huggingface-cli login --token $HUGGINGFACE_TOKEN
 
 LAUNCHER="torchrun --nproc_per_node={{ n_proc_per_node }} --nnode={{ nodes }} --node_rank=$SLURM_NODEID --rdzv_endpoint ${MASTER_ADDR}:${MASTER_PORT} --rdzv_backend c10d --max_restarts 0 --tee 3"

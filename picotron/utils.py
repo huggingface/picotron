@@ -1,9 +1,10 @@
-import torch
+import os
 import random
 import numpy as np
 import builtins
 import fcntl
 from . import process_group_manager as pgm
+import huggingface_hub
 import torch, torch.distributed as dist
 
 def print(*args, is_print_rank=True, **kwargs):
@@ -93,3 +94,20 @@ def average_loss_across_dp_cp_ranks(loss, device):
         dist.all_reduce(reduced_loss, op=dist.ReduceOp.SUM, group=pgm.process_group_manager.cp_dp_group)
         reduced_loss /= pgm.process_group_manager.cp_dp_world_size
     return reduced_loss.item()
+
+def download_model(model_name, hf_token):
+    dst = os.path.join("hf_model", model_name)
+    os.makedirs(dst, exist_ok=True)
+    # check if model is already downloaded
+    if os.path.exists(os.path.join(dst, "config.json")):
+        print(f"Model {model_name} already exists at {dst}")
+        return
+    # Download HF model safetensors at the "dst" directory
+    huggingface_hub.constants.HF_HUB_ENABLE_HF_TRANSFER = True
+    print("Downloading SafeTensors files...")
+    huggingface_hub.snapshot_download(model_name, repo_type="model", local_dir="hf_model_safetensors", token=hf_token,
+                                      allow_patterns=["*.safetensors", "*.json"])
+    # Check if the model has SafeTensors files
+    if not os.path.exists("hf_model_safetensors/model.safetensors"):
+        raise ValueError(f"Model {model_name} does not have SafeTensors files.")
+    print("SafeTensors files downloaded successfully! ✅")
