@@ -185,6 +185,32 @@ class MLP(nn.Module):
         #TODO: dont do single line operations as it is harder to debug
         return self.down_proj(F.silu(self.gate_proj(x)) * self.up_proj(x))
 
+class FinalProjection(nn.Module):
+    def __init__(self, hidden_size, vocab_size, bias=False):
+        super().__init__()
+        self.in_features = hidden_size
+        self.out_features = vocab_size
+        # Note: torch.nn.functional.linear performs XW^T + b so we exchange the order of dimensions
+        self.weight = nn.Parameter(torch.empty(self.out_features, self.in_features))
+        if bias:
+            self.bias = nn.Parameter(torch.empty(self.out_features))
+        else:
+            self.bias = None
+        self.reset_parameters()
+
+    def reset_parameters(self):
+        def _init_weights(tensor):
+            k = 1 / tensor.size(1)
+            bound = math.sqrt(k)
+            torch.nn.init.uniform_(tensor, -bound, bound)
+
+        _init_weights(self.weight)
+        if self.bias is not None:
+            _init_weights(self.bias)
+
+    def forward(self, x):
+        return F.linear(x, self.weight, self.bias)
+
 class DecoderLayer(nn.Module):
     # RMSNorm -> Attention -> Residual -> RMSNorm -> MLP -> Residual
     def __init__(self, config, layer_idx):
@@ -244,7 +270,7 @@ class Llama(nn.Module):
         # modules
         self.embedding = Embedding(self.vocab_size, self.hidden_size)
         self.decoder_layers = nn.ModuleList([DecoderLayer(config,layer_idx = i) for i in range(self.num_layers)])
-        self.final_proj = nn.Linear(self.hidden_size, self.vocab_size, bias=False)
+        self.final_proj = FinalProjection(self.hidden_size, self.vocab_size, bias=False)
         RMSNorm = LlamaRMSNorm if os.getenv('FLASH_ATTEN', '1') != '1' else TritonRMSNorm
         self.final_norm = RMSNorm(self.hidden_size, eps=config.rms_norm_eps)
 

@@ -7,6 +7,7 @@ import torch.distributed as dist
 from safetensors import safe_open
 import contextlib
 
+from picotron.model import FinalProjection
 from picotron.utils import assert_no_meta_tensors, print
 import picotron.process_group_manager as pgm
 
@@ -87,8 +88,18 @@ def init_model_with_materialized_weights(model, model_config, save_dir):
 
     # Force creation of lm_head (even if it is tie_embedding)
     if pgm.process_group_manager.pp_is_last_stage or not isinstance(model, PipelineParallel):
-        model.final_proj = nn.Linear(model_config.hidden_size, model_config.vocab_size, bias=False)
-        state_dict['final_proj.weight'] = torch.zeros(model_config.vocab_size, model_config.hidden_size)
+        vocab_size = model_config.vocab_size
+        if pgm.process_group_manager.tp_world_size > 1:
+            # For TP>1, the final_proj is already wrapped in ColumnParallel
+            # Just need to initialize state_dict with correct sharded size
+            vocab_per_rank = vocab_size // pgm.process_group_manager.tp_world_size
+            # Note: For ColumnParallelLinear, weight shape should be (output_size_per_partition, in_features)
+            state_dict['final_proj.weight'] = torch.zeros(vocab_per_rank, model_config.hidden_size)
+        else:
+            # For TP=1, create the full layer. FinalProjection expects weight shape (out_features, in_features)
+            # FinalProjection is needed so that we cann call .reset_parameters() on it
+            model.final_proj = FinalProjection(model_config.hidden_size, vocab_size, bias=False)
+            state_dict['final_proj.weight'] = torch.zeros(vocab_size, model_config.hidden_size)
 
     # Synchronize across distributed processes and load weights
     dist.barrier()
