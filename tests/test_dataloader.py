@@ -24,31 +24,31 @@ class DummyDataLoader(DataLoader):
         self.grad_acc_steps = grad_acc_steps
         self.global_batch_size = micro_batch_size * grad_acc_steps * pgm.process_group_manager.dp_world_size
         self.num_global_micro_batches = self.global_batch_size // self.micro_batch_size
-        
+
         self.seq_length_per_gpu = seq_length // pgm.process_group_manager.cp_world_size
 
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
         self.dataset = load_dataset(dataset_name, split=split)
         if num_samples:
             self.dataset = self.dataset.select(range(min(num_samples, len(self.dataset))))
-        
+
         # Tokenize and chunk the dataset
         self.tokenized_dataset = self.tokenize_dataset(self.dataset, "text", self.seq_length, num_proc)
-        
+
         self.sampler = DistributedSampler(
-            self.tokenized_dataset, 
-            num_replicas=pgm.process_group_manager.dp_world_size, 
-            rank=pgm.process_group_manager.dp_rank, 
+            self.tokenized_dataset,
+            num_replicas=pgm.process_group_manager.dp_world_size,
+            rank=pgm.process_group_manager.dp_rank,
             shuffle=False
         )
-        
+
         super().__init__(
             self.tokenized_dataset,
             batch_size=micro_batch_size,
-            collate_fn=self.collate_batch, 
-            pin_memory=True, 
-            num_workers=num_workers, 
-            sampler=self.sampler, 
+            collate_fn=self.collate_batch,
+            pin_memory=True,
+            num_workers=num_workers,
+            sampler=self.sampler,
             shuffle=False
         )
 
@@ -102,15 +102,15 @@ class DummyDataLoader(DataLoader):
         batch_size = batch_input_ids.size(0)
         input_ids = batch_input_ids[:, :self.seq_length].contiguous()
         target_ids = batch_input_ids[:, 1:self.seq_length+1].contiguous()
-        position_ids = torch.arange(0, self.seq_length, dtype=torch.long).unsqueeze(0).expand(batch_size, -1).contiguous() 
-        
+        position_ids = torch.arange(0, self.seq_length, dtype=torch.long).unsqueeze(0).expand(batch_size, -1).contiguous()
+
         return {
             "input_ids": input_ids,
             "target_ids": target_ids,
             "position_ids": position_ids,
             "hidden_states": None
         }
-    
+
     def __iter__(self):
         if self._iterator is None:
             self._iterator = super().__iter__()
@@ -139,17 +139,18 @@ def test_cp_behavior(TP_SIZE, CP_SIZE, PP_SIZE, DP_SIZE, SEQ_LEN=8):
     global_rank = int(os.environ["RANK"])
     world_size = int(os.environ["WORLD_SIZE"])
     backend = "nccl"
-    
+
     assert SEQ_LEN % CP_SIZE == 0, "SEQ_LEN must be divisible by cp_size for Context Parallelism"
-    dist.init_process_group(rank=global_rank, world_size=world_size, backend=backend, init_method=f"env://", timeout=datetime.timedelta(minutes=3))
+    dist.init_process_group(rank=global_rank, world_size=world_size, backend=backend, init_method="env://", timeout=datetime.timedelta(minutes=3))
     setup_process_group_manager(tp_size=TP_SIZE, cp_size=CP_SIZE, pp_size=PP_SIZE, dp_size=DP_SIZE)
-    
+
     data_loader = MicroBatchDataLoader(
         micro_batch_size=2,
         seq_length=SEQ_LEN,
         dataset_name="roneneldan/TinyStories",
         tokenizer_name="HuggingFaceTB/SmolLM-135M",
         grad_acc_steps=1,
+        device=f"cuda:{local_rank}",
         num_workers=1,
         num_proc=1,
         num_samples=10,
@@ -182,23 +183,24 @@ def test_infinite_loop():
     global_rank = 0
     world_size = 1
     backend = "nccl"
-    
-    dist.init_process_group(rank=global_rank, world_size=world_size, backend=backend, init_method=f"env://", timeout=datetime.timedelta(minutes=3))
+
+    dist.init_process_group(rank=global_rank, world_size=world_size, backend=backend, init_method="env://", timeout=datetime.timedelta(minutes=3))
     setup_process_group_manager(tp_size=1, cp_size=1, pp_size=1, dp_size=1)
-    
+
     data_loader = MicroBatchDataLoader(
         micro_batch_size=2,
         seq_length=256,
         dataset_name="roneneldan/TinyStories",
         tokenizer_name="HuggingFaceTB/SmolLM-135M",
         grad_acc_steps=1,
+        device=f"cuda:{local_rank}",
         num_workers=1,
         num_proc=1,
         num_samples=2,
-    ) 
+    )
 
     s = set()
-    for i in range(10):
+    for _ in range(10):
         batch = next(data_loader)
         # Convert the nested list to a tuple of tuples
         batch_tuple = tuple(tuple(x) for x in batch["input_ids"].tolist())
