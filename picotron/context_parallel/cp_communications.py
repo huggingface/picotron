@@ -3,7 +3,7 @@ import torch
 from torch import distributed as dist
 from typing import List
 
-import picotron.process_group_manager as pgm
+from .. import process_group_manager as pgm
 
 STEP, VERBOSE = 0, os.environ.get("VERBOSE", "0") == "1"
 

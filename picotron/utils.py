@@ -3,10 +3,8 @@ import random
 import numpy as np
 import builtins
 import fcntl
-
+from . import process_group_manager as pgm
 import huggingface_hub
-
-import picotron.process_group_manager as pgm
 import torch, torch.distributed as dist
 
 def print(*args, is_print_rank=True, **kwargs):

@@ -7,10 +7,10 @@ import torch.distributed as dist
 from safetensors import safe_open
 import contextlib
 
-from picotron.utils import assert_no_meta_tensors, print
-import picotron.process_group_manager as pgm
+from .utils import assert_no_meta_tensors, print
+from . import process_group_manager as pgm
 
-from picotron.pipeline_parallel.pipeline_parallel import PipelineParallel
+from .pipeline_parallel.pipeline_parallel import PipelineParallel
 
 @contextlib.contextmanager
 def init_model_with_dematerialized_weights(include_buffers: bool = False):

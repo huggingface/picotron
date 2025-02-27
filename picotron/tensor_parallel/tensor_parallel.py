@@ -3,8 +3,8 @@ from typing import Optional
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import picotron.process_group_manager as pgm
-from picotron.tensor_parallel.tp_communications import ReduceFromModelParallelRegion, GatherFromModelParallelRegion, linear_with_all_reduce, linear_with_async_all_reduce
+from .. import process_group_manager as pgm
+from .tp_communications import ReduceFromModelParallelRegion, GatherFromModelParallelRegion, linear_with_all_reduce, linear_with_async_all_reduce
 
 def apply_tensor_parallel(model):
 
