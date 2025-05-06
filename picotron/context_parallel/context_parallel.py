@@ -164,7 +164,7 @@ def update_out_and_lse(
     
     def _update(current_out, current_lse):
         # new_lse = lse + torch.log(1 + torch.exp(block_lse - lse))
-        # torch.exp(lse - new_lse) * out + torch.exp(block_lse - new_lse) * block_out
+        # out = torch.exp(lse - new_lse) * out + torch.exp(block_lse - new_lse) * block_out
         # For additional context and discussion, please refer to:
         # https://github.com/zhuzilin/ring-flash-attention/pull/34#issuecomment-2076126795
         current_out = current_out - F.sigmoid(block_lse - current_lse) * (current_out - block_out)
