@@ -104,7 +104,7 @@ def train_step_pipeline_afab(model, data_loader, tensor_shapes, device, dtype):
         
         # calculate loss on the last stage
         if pgm.process_group_manager.pp_is_last_stage:
-            output_tensor = F.cross_entropy(output_tensor.transpose(1, 2), batch["target_ids"].to(device), reduction='mean')
+            output_tensor = F.cross_entropy(output_tensor.flatten(0, 1), batch["target_ids"].to(device).flatten(), reduction='mean')
             logging_loss += output_tensor.item() / data_loader.grad_acc_steps
 
         # Save input/output activations to reconstruct computation graph during backward pass
@@ -157,7 +157,7 @@ def train_step_pipeline_1f1b(model, data_loader, tensor_shapes, device, dtype):
         
         # calculate loss on the last stage
         if pgm.process_group_manager.pp_is_last_stage:
-            output_tensor = F.cross_entropy(output_tensor.transpose(1, 2), batch["target_ids"].to(device), reduction='mean')
+            output_tensor = F.cross_entropy(output_tensor.flatten(0, 1), batch["target_ids"].to(device).flatten(), reduction='mean')
             nonlocal logging_loss
             logging_loss += output_tensor.item() / data_loader.grad_acc_steps
         return output_tensor
