@@ -1,17 +1,18 @@
+import contextlib
+import json
 import os
 import re
-import json
+
 import torch
-import torch.nn as nn
 import torch.distributed as dist
+import torch.nn as nn
 from safetensors import safe_open
-import contextlib
 
-from picotron.model import FinalProjection
-from picotron.utils import assert_no_meta_tensors, print
 import picotron.process_group_manager as pgm
-
+from picotron.model import FinalProjection
 from picotron.pipeline_parallel.pipeline_parallel import PipelineParallel
+from picotron.utils import assert_no_meta_tensors, print
+
 
 @contextlib.contextmanager
 def init_model_with_dematerialized_weights(include_buffers: bool = False):

@@ -1,11 +1,13 @@
+import contextlib
+
 import torch
 import torch.distributed as dist
-import contextlib
 from torch import nn
 from torch.autograd import Variable
 
-from picotron.data_parallel.bucket import BucketManager
 import picotron.process_group_manager as pgm
+from picotron.data_parallel.bucket import BucketManager
+
 
 class DataParallelNaive(nn.Module):
     """

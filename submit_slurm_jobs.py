@@ -1,9 +1,11 @@
-from enum import Enum
-import os
-from jinja2 import Template
-import subprocess
 import json
-from typing import List 
+import os
+import subprocess
+from enum import Enum
+from typing import List
+
+from jinja2 import Template
+
 
 class Status(Enum):
     # INIT -> PENDING -> [RUNNING | FAIL | TIMEOUT OOM] -> COMPLETED

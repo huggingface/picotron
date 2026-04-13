@@ -1,7 +1,8 @@
 from typing import List
+
 import torch
 import torch.distributed as dist
-from torch import nn
+
 
 class Bucket:
     def __init__(self, params: List[torch.nn.Parameter], grad_data: torch.Tensor, process_group: torch.distributed.ProcessGroup) -> None:
