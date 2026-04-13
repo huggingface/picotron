@@ -1,6 +1,8 @@
 import os
+
 import torch
 import torch.distributed as dist
+
 import picotron.process_group_manager as pgm
 
 STEP, VERBOSE = 0, os.environ.get("VERBOSE", "0") == "1"

@@ -1,9 +1,11 @@
-import torch.distributed as dist
+from typing import Tuple
+
 import torch
-import picotron.process_group_manager as pgm
+import torch.distributed as dist
 import torch.nn.functional as F
 
-from typing import Tuple
+import picotron.process_group_manager as pgm
+
 
 def merge_first_two_dims(grad_output: torch.Tensor, input_: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
     """Merge the first two dimensions of tensors."""

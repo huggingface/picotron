@@ -1,20 +1,21 @@
 """
 torchrun --nproc_per_node 2 --master_addr localhost --master_port 25500 test_dataloader.py
 """
-from picotron.data import MicroBatchDataLoader
-import torch.distributed as dist
-import os
 import datetime
-from picotron.process_group_manager import setup_process_group_manager
-
-import torch
-from torch.utils.data import DataLoader, DistributedSampler
-import numpy as np
+import os
 from functools import partial
+
+import numpy as np
+import torch
+import torch.distributed as dist
 from datasets import Features, Sequence, Value, load_dataset
+from torch.utils.data import DataLoader, DistributedSampler
 from transformers import AutoTokenizer
 
 import picotron.process_group_manager as pgm
+from picotron.data import MicroBatchDataLoader
+from picotron.process_group_manager import setup_process_group_manager
+
 
 # remove context parallelism split. as a reference
 class DummyDataLoader(DataLoader):

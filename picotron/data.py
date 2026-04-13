@@ -1,13 +1,15 @@
+from functools import partial
+
+import numpy as np
 import torch
 import torch.distributed as dist
-from torch.utils.data import DataLoader, DistributedSampler
-import numpy as np
-from functools import partial
 from datasets import Features, Sequence, Value, load_dataset
+from torch.utils.data import DataLoader, DistributedSampler
 from transformers import AutoTokenizer
-from picotron.utils import print
 
 import picotron.process_group_manager as pgm
+from picotron.utils import print
+
 
 class MicroBatchDataLoader(DataLoader):
     def __init__(self,  micro_batch_size, seq_length, dataset_name, tokenizer_name, num_workers, num_proc, grad_acc_steps, device, subset_name=None, split="train", num_samples=None, pin_memory=True):

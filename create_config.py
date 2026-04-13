@@ -2,14 +2,17 @@
 """
 python create_config.py --out_dir tmp --exp_name test_2_node --tp 2 --cp 2 --pp 2 --dp 2 --model_name HuggingFaceTB/SmolLM-360M-Instruct --num_attention_heads 16 --num_key_value_heads 4 --grad_acc_steps 1 --mbs 32 --seq_len 4096 --use_wandb
 """
-import os
-from copy import deepcopy
-from transformers import AutoConfig
-import shutil
 import argparse
 import json
+import os
+import shutil
+from copy import deepcopy
 from typing import Optional
+
+from transformers import AutoConfig
+
 from picotron.utils import download_model
+
 
 def create_single_config(
     out_dir: str,

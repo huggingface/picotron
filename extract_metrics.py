@@ -1,9 +1,11 @@
-import re
+import argparse
 import csv
 import glob
 import os
-import argparse
+import re
+
 import numpy as np
+
 
 def parse_folder_name(folder_name):
     dp = re.search(r'dp(\d+)', folder_name)

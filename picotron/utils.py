@@ -1,14 +1,16 @@
-import os
-import random
-import numpy as np
 import builtins
 import fcntl
 import glob
+import os
+import random
 
 import huggingface_hub
+import numpy as np
+import torch
+import torch.distributed as dist
 
 import picotron.process_group_manager as pgm
-import torch, torch.distributed as dist
+
 
 def print(*args, is_print_rank=True, **kwargs):
     """ solves multi-process interleaved print problem """

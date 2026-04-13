@@ -1,7 +1,8 @@
 import os
+from typing import List
+
 import torch
 from torch import distributed as dist
-from typing import List
 
 import picotron.process_group_manager as pgm
 
