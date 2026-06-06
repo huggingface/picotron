@@ -21,7 +21,7 @@ class RingAttentionFunc(torch.autograd.Function):
         comm = ContextCommunicate("comm")
         #TODO(fmom): add flex attention
         #TODO(fmom): add flash attention
-        #TODO(fmom): Find a better to save these tensors without cloning
+        #TODO(fmom): Find a better way to save these tensors without cloning
         k_og = k.clone()
         v_og = v.clone()
         out, lse = None, None

@@ -57,7 +57,7 @@ class ProcessGroupManager:
         self.dp_first_rank = self.dp_group_ids[0]
         self.dp_last_rank = self.dp_group_ids[-1]
         
-        # Context + Data paralellism
+        # Context + Data parallelism
         self.cp_dp_world_size = dist.get_world_size(group=self.cp_dp_group)
         
     def __str__(self):
