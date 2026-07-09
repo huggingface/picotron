@@ -88,25 +88,18 @@ class BucketManager:
         cur_bucket_size = 0 
         cur_bucket_idx = 0
         
-        # Assign parameters to buckets. 
+        # Assign parameters to buckets.
         for param in self.params:
             if not param.requires_grad:
                 continue
-            
-            # If the bucket is empty, add the parameter to the bucket.
-            if cur_bucket_size == 0:
-                self.params_to_bucket_location[param] = (0, param.numel(), cur_bucket_idx)
-                cur_bucket_size = param.numel()
-                continue
-            
-            # If the parameter cannot fit in the current bucket, create a new bucket
-            if cur_bucket_size + param.numel() > self.bucket_size:
+
+            # If the parameter cannot fit in the current (non-empty) bucket, start a new bucket.
+            if cur_bucket_size > 0 and cur_bucket_size + param.numel() > self.bucket_size:
                 cur_bucket_idx += 1
-                self.params_to_bucket_location[param] = (0, param.numel(), cur_bucket_idx)
-                cur_bucket_size = param.numel()
-            else:
-                self.params_to_bucket_location[param] = (cur_bucket_size, cur_bucket_size + param.numel(), cur_bucket_idx)
-                cur_bucket_size += param.numel()
+                cur_bucket_size = 0
+
+            self.params_to_bucket_location[param] = (cur_bucket_size, cur_bucket_size + param.numel(), cur_bucket_idx)
+            cur_bucket_size += param.numel()
 
         # Gather information about the bucket sizes and the parameters in each bucket
         bucket_sizes = [0] * (cur_bucket_idx + 1)
