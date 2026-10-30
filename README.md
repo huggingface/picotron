@@ -1,4 +1,9 @@
 # picotron
+
+<p align="center">
+  <b>English</b> · <a href="https://github.com/huggingface/picotron/blob/main/README.zh.md">简体中文</a>
+</p>
+
 In the spirit of [NanoGPT](https://github.com/karpathy/nanoGPT), we created Picotron: The minimalist & most-hackable repository for pre-training Llama-like models with [4D Parallelism](https://arxiv.org/abs/2407.21783) (Data, Tensor, Pipeline, Context parallel). It is designed with simplicity and **educational** purposes in mind, making it an excellent tool for learning and experimentation.
 
 ![](assets/banière.png)
